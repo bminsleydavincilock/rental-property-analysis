@@ -11,6 +11,7 @@ import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from database import load_data
 
 # Page configuration
 st.set_page_config(
@@ -45,26 +46,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data
-def load_data():
-    """Load and cache the dataset"""
-    try:
-        df = pd.read_csv('practice_dataset.csv')
-        # Add calculated columns
-        df['rate_per_sf'] = df['rental rate'] / df['unit sf']
-        df['size_category'] = pd.cut(df['unit sf'], 
-                                   bins=[0, 100, 150, 200], 
-                                   labels=['Small (≤100)', 'Medium (101-150)', 'Large (151-200)'])
-        return df
-    except FileNotFoundError:
-        st.error("Dataset file 'practice_dataset.csv' not found!")
-        return None
+# Data loading is now handled by the database module
 
 def main():
     # Header
     st.markdown('<h1 class="main-header">🏠 Rental Property Data Analysis Dashboard</h1>', unsafe_allow_html=True)
     
-    # Load data
+    # Load data from Supabase (with CSV fallback)
     df = load_data()
     if df is None:
         return
@@ -76,9 +64,9 @@ def main():
     st.sidebar.markdown("### Unit Size (sq ft)")
     min_size, max_size = st.sidebar.slider(
         "Size Range",
-        min_value=int(df['unit sf'].min()),
-        max_value=int(df['unit sf'].max()),
-        value=(int(df['unit sf'].min()), int(df['unit sf'].max())),
+        min_value=int(df['unitsf'].min()),
+        max_value=int(df['unitsf'].max()),
+        value=(int(df['unitsf'].min()), int(df['unitsf'].max())),
         step=10
     )
     
@@ -86,18 +74,18 @@ def main():
     st.sidebar.markdown("### Rental Rate ($)")
     min_rate, max_rate = st.sidebar.slider(
         "Rate Range",
-        min_value=float(df['rental rate'].min()),
-        max_value=float(df['rental rate'].max()),
-        value=(float(df['rental rate'].min()), float(df['rental rate'].max())),
+        min_value=float(df['rentalrate'].min()),
+        max_value=float(df['rentalrate'].max()),
+        value=(float(df['rentalrate'].min()), float(df['rentalrate'].max())),
         step=5.0
     )
     
     # Apply filters
     filtered_df = df[
-        (df['unit sf'] >= min_size) & 
-        (df['unit sf'] <= max_size) &
-        (df['rental rate'] >= min_rate) & 
-        (df['rental rate'] <= max_rate)
+        (df['unitsf'] >= min_size) & 
+        (df['unitsf'] <= max_size) &
+        (df['rentalrate'] >= min_rate) & 
+        (df['rentalrate'] <= max_rate)
     ].copy()
     
     # Main content
@@ -107,11 +95,11 @@ def main():
         st.metric("Total Units", len(filtered_df))
     
     with col2:
-        avg_size = filtered_df['unit sf'].mean()
+        avg_size = filtered_df['unitsf'].mean()
         st.metric("Avg Unit Size", f"{avg_size:.0f} sq ft")
     
     with col3:
-        avg_rate = filtered_df['rental rate'].mean()
+        avg_rate = filtered_df['rentalrate'].mean()
         st.metric("Avg Rental Rate", f"${avg_rate:.2f}")
     
     with col4:
@@ -137,7 +125,7 @@ def main():
             st.write(f"**Missing Values:** {filtered_df.isnull().sum().sum()}")
             
             if len(filtered_df) > 1:
-                correlation = filtered_df['unit sf'].corr(filtered_df['rental rate'])
+                correlation = filtered_df['unitsf'].corr(filtered_df['rentalrate'])
                 st.write(f"**Correlation (Size vs Rate):** {correlation:.3f}")
     
     with tab2:
@@ -155,11 +143,11 @@ def main():
         # Scatter plot
         fig.add_trace(
             go.Scatter(
-                x=filtered_df['unit sf'],
-                y=filtered_df['rental rate'],
+                x=filtered_df['unitsf'],
+                y=filtered_df['rentalrate'],
                 mode='markers',
                 marker=dict(size=10, color='blue', opacity=0.7),
-                text=filtered_df['last name'],
+                text=filtered_df['lastname'],
                 hovertemplate='<b>%{text}</b><br>Size: %{x} sq ft<br>Rate: $%{y}<extra></extra>',
                 name='Units'
             ),
@@ -168,9 +156,9 @@ def main():
         
         # Add trend line
         if len(filtered_df) > 1:
-            z = np.polyfit(filtered_df['unit sf'], filtered_df['rental rate'], 1)
+            z = np.polyfit(filtered_df['unitsf'], filtered_df['rentalrate'], 1)
             p = np.poly1d(z)
-            x_trend = np.linspace(filtered_df['unit sf'].min(), filtered_df['unit sf'].max(), 100)
+            x_trend = np.linspace(filtered_df['unitsf'].min(), filtered_df['unitsf'].max(), 100)
             fig.add_trace(
                 go.Scatter(
                     x=x_trend,
@@ -185,7 +173,7 @@ def main():
         # Histogram - Rental Rate
         fig.add_trace(
             go.Histogram(
-                x=filtered_df['rental rate'],
+                x=filtered_df['rentalrate'],
                 nbinsx=min(10, len(filtered_df)),
                 marker_color='green',
                 opacity=0.7,
@@ -197,7 +185,7 @@ def main():
         # Histogram - Unit Size
         fig.add_trace(
             go.Histogram(
-                x=filtered_df['unit sf'],
+                x=filtered_df['unitsf'],
                 nbinsx=min(10, len(filtered_df)),
                 marker_color='orange',
                 opacity=0.7,
@@ -209,7 +197,7 @@ def main():
         # Bar chart - Rate per sq ft
         fig.add_trace(
             go.Bar(
-                x=filtered_df['last name'],
+                x=filtered_df['lastname'],
                 y=filtered_df['rate_per_sf'],
                 marker_color='purple',
                 opacity=0.7,
@@ -243,7 +231,7 @@ def main():
         with col1:
             st.markdown("### Size Category Analysis")
             size_analysis = filtered_df.groupby('size_category').agg({
-                'rental rate': ['count', 'mean', 'std'],
+                'rentalrate': ['count', 'mean', 'std'],
                 'rate_per_sf': 'mean'
             }).round(2)
             size_analysis.columns = ['Count', 'Avg Rate', 'Std Rate', 'Avg Rate/SqFt']
@@ -253,22 +241,22 @@ def main():
             st.markdown("### Top/Bottom Units")
             
             # Most expensive
-            most_expensive = filtered_df.loc[filtered_df['rental rate'].idxmax()]
+            most_expensive = filtered_df.loc[filtered_df['rentalrate'].idxmax()]
             st.markdown("**Most Expensive Unit:**")
-            st.write(f"👤 {most_expensive['last name']}")
-            st.write(f"📏 {most_expensive['unit sf']} sq ft")
-            st.write(f"💰 ${most_expensive['rental rate']}")
+            st.write(f"👤 {most_expensive['lastname']}")
+            st.write(f"📏 {most_expensive['unitsf']} sq ft")
+            st.write(f"💰 ${most_expensive['rentalrate']}")
             
             # Least expensive
-            least_expensive = filtered_df.loc[filtered_df['rental rate'].idxmin()]
+            least_expensive = filtered_df.loc[filtered_df['rentalrate'].idxmin()]
             st.markdown("**Least Expensive Unit:**")
-            st.write(f"👤 {least_expensive['last name']}")
-            st.write(f"📏 {least_expensive['unit sf']} sq ft")
-            st.write(f"💰 ${least_expensive['rental rate']}")
+            st.write(f"👤 {least_expensive['lastname']}")
+            st.write(f"📏 {least_expensive['unitsf']} sq ft")
+            st.write(f"💰 ${least_expensive['rentalrate']}")
         
         # Best value analysis
         st.markdown("### Best Value Analysis")
-        best_value = filtered_df.nsmallest(3, 'rate_per_sf')[['last name', 'unit sf', 'rental rate', 'rate_per_sf']]
+        best_value = filtered_df.nsmallest(3, 'rate_per_sf')[['lastname', 'unitsf', 'rentalrate', 'rate_per_sf']]
         st.dataframe(best_value, use_container_width=True)
     
     with tab4:
@@ -279,14 +267,14 @@ def main():
         with col1:
             show_all = st.checkbox("Show all columns", value=True)
         with col2:
-            sort_by = st.selectbox("Sort by", ['rental rate', 'unit sf', 'rate_per_sf', 'last name'])
+            sort_by = st.selectbox("Sort by", ['rentalrate', 'unitsf', 'rate_per_sf', 'lastname'])
         with col3:
             ascending = st.checkbox("Ascending order", value=False)
         
         # Prepare data for display
         display_df = filtered_df.copy()
         if not show_all:
-            display_df = display_df[['last name', 'unit sf', 'rental rate', 'rate_per_sf']]
+            display_df = display_df[['lastname', 'unitsf', 'rentalrate', 'rate_per_sf']]
         
         display_df = display_df.sort_values(sort_by, ascending=ascending)
         

@@ -11,7 +11,8 @@ import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from database import load_data
+from database import load_data, clear_data_cache
+from datetime import datetime
 
 # Page configuration
 st.set_page_config(
@@ -43,6 +44,13 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         margin-bottom: 1rem;
     }
+    .refresh-section {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid #e9ecef;
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,10 +60,37 @@ def main():
     # Header
     st.markdown('<h1 class="main-header">🏠 Rental Property Data Analysis Dashboard</h1>', unsafe_allow_html=True)
     
+    # Data refresh section
+    st.markdown('<div class="refresh-section">', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col1:
+        # Refresh button
+        if st.button("🔄 Refresh Data", help="Click to fetch the latest data from Supabase", type="primary"):
+            # Clear the cache to force data reload
+            clear_data_cache()
+            st.rerun()
+    
+    with col2:
+        # Display last update time
+        if 'last_update' not in st.session_state:
+            st.session_state.last_update = datetime.now()
+        
+        st.markdown(f"**Last Updated:** {st.session_state.last_update.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    with col3:
+        # Data source indicator
+        st.markdown("**Data Source:** Supabase")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     # Load data from Supabase (with CSV fallback)
     df = load_data()
     if df is None:
         return
+    
+    # Update the timestamp when data is successfully loaded
+    st.session_state.last_update = datetime.now()
     
     # Sidebar filters
     st.sidebar.markdown("## 🔍 Filter Options")

@@ -80,6 +80,10 @@ def load_data_fallback():
 # Note: Table creation and data insertion are now handled by the upload scripts
 # This module focuses on data loading for the Streamlit app
 
+def clear_data_cache():
+    """Clear the cached data to force a fresh load"""
+    load_data_from_database.clear()
+
 def load_data():
     """Main function to load data - tries Supabase first, then CSV"""
     # Try to load from Supabase first

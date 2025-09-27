@@ -1,0 +1,13 @@
+last name,unit sf,rental rate,rate_per_sf,size_category
+Minsley,50,51.2,1.024,Small
+Neal,60,59.61,0.9934999999999999,Small
+Hoffmann,100,110.33,1.1033,Small
+Brown,190,211.58,1.1135789473684212,Large
+Jones,180,198.02,1.1001111111111113,Large
+Garcia,160,180.24,1.1265,Large
+Miller,130,149.33,1.1486923076923077,Medium
+Davis,140,146.48,1.0462857142857143,Medium
+Rodriguez,70,76.14,1.0877142857142856,Small
+Martinez,200,229.48,1.1474,Large
+Hernandez,90,115.02,1.278,Small
+Lopez,120,132.43,1.1035833333333334,Medium
